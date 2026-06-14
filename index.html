@@ -1,0 +1,821 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>YPad | Think. Learn. Write.</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet">
+    
+    <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
+
+    <script src="https://cdn.jsdelivr.net/npm/dexie@3.2.4/dist/dexie.min.js"></script>
+    
+    <style>
+        /* Mobile Native App Resets & Utilities */
+        :root {
+            --app-bg: #000000;
+            --surface: #1C1C1E;
+            --accent: #0A84FF;
+            --text-main: #FFFFFF;
+            --border-color: #38383A;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--app-bg); 
+            color: var(--text-main); 
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: none; 
+            touch-action: none;
+        }
+
+        .no-select { user-select: none; -webkit-user-select: none; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .handwriting {
+            font-family: 'Patrick Hand', cursive;
+            line-height: 1.5;
+        }
+
+        /* EXACT Default Font Size (25px) locked for all elements */
+        #editor { font-size: 25px; } 
+
+        /* Editor Styles */
+        #editor-container { touch-action: auto; }
+        
+        #editor {
+            min-height: 100%;
+            outline: none;
+            padding-bottom: 150px; 
+            word-wrap: break-word;
+        }
+        
+        #editor table { width: 100%; border-collapse: collapse; margin: 15px 0; border: 1px solid var(--border-color); }
+        #editor td { border: 1px solid var(--border-color); padding: 10px; min-width: 50px; vertical-align: top; }
+        #editor td.active-cell { background-color: rgba(10, 132, 255, 0.15); border: 1px solid var(--accent); }
+        #editor ul { list-style-type: disc; padding-left: 30px; margin: 10px 0; }
+        #editor ol { list-style-type: decimal; padding-left: 30px; margin: 10px 0; }
+        #editor a { color: var(--accent); text-decoration: underline; }
+
+        .format-active {
+            background-color: rgba(10, 132, 255, 0.2) !important;
+            color: var(--accent) !important;
+        }
+
+        .pt-safe { padding-top: env(safe-area-inset-top); }
+        .pb-safe { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
+        
+        .modal-glass {
+            background: rgba(28, 28, 30, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+    </style>
+</head>
+<body class="fixed inset-0 overflow-hidden flex flex-col text-[15px]">
+
+    <div class="hidden landscape:flex fixed inset-0 z-[9999] bg-black text-white flex-col items-center justify-center p-8 text-center no-select">
+        <i class="fas fa-mobile-alt text-6xl mb-6 text-[#FF453A] animate-bounce"></i>
+        <h2 class="text-2xl font-bold mb-2">Portrait Mode Only</h2>
+        <p class="text-[#8E8E93]">Please rotate your device back to portrait.</p>
+    </div>
+
+    <div id="view-loading" class="absolute inset-0 z-50 bg-black flex flex-col items-center justify-center no-select">
+        <i class="fas fa-circle-notch fa-spin text-4xl text-[#0A84FF] mb-4"></i>
+    </div>
+
+    <div id="view-explorer" class="hidden h-full flex-col bg-black w-full no-select">
+        <header class="pt-safe bg-[#1C1C1E]/80 backdrop-blur-xl border-b border-[#38383A] flex items-center justify-between px-4 py-3 z-10 shrink-0">
+            <button id="btn-back-folder" onclick="goBack()" class="w-8 h-8 flex items-center text-[#0A84FF] text-xl hidden">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <div id="header-spacer" class="w-8"></div>
+            <h1 id="current-folder-title" class="text-lg font-semibold text-center truncate flex-1 tracking-wide">YPad | Think. Learn. Write.</h1>
+            <button onclick="showSettings()" class="w-8 h-8 flex items-center justify-end text-[#0A84FF] text-xl">
+                <i class="fas fa-ellipsis-h"></i>
+            </button>
+        </header>
+
+        <div class="px-4 py-2 bg-[#111111] border-b border-[#38383A] text-xs text-[#8E8E93] truncate shrink-0 flex items-center" id="breadcrumb">
+            <i class="fas fa-home mr-2 text-[10px]"></i> root
+        </div>
+
+        <main class="flex-1 overflow-y-auto no-scrollbar pb-24" id="file-list" style="touch-action: auto;">
+            </main>
+
+        <button onclick="openCreateModal()" class="absolute bottom-8 right-6 bg-[#0A84FF] text-white w-14 h-14 rounded-full shadow-[0_8px_20px_rgba(10,132,255,0.4)] flex items-center justify-center text-xl active:scale-95 transition-transform z-20">
+            <i class="fas fa-plus"></i>
+        </button>
+    </div>
+
+    <div id="view-editor" class="hidden h-full flex-col w-full bg-black relative">
+        <header class="pt-safe bg-[#1C1C1E]/80 backdrop-blur-xl border-b border-[#38383A] flex items-center px-4 py-3 z-10 shrink-0 no-select">
+            <button onclick="closeNote()" class="text-[#0A84FF] text-xl mr-3 active:opacity-50 transition-opacity flex items-center">
+                <i class="fas fa-chevron-left mr-1"></i>
+            </button>
+            <h1 id="note-title" class="text-lg font-semibold truncate flex-1 handwriting text-white" style="font-size: 20px;">Title</h1>
+            
+            <button id="btn-toggle-mode" onclick="toggleEditMode()" class="ml-2 px-4 py-1.5 rounded-full text-sm font-semibold transition-colors bg-[#2C2C2E] text-[#0A84FF] active:opacity-70">
+                <span id="mode-label">Edit</span>
+            </button>
+        </header>
+
+        <main class="flex-1 overflow-y-auto bg-black text-white scroll-smooth" id="editor-container" onclick="focusEditorIfEditMode(event)">
+            <div id="editor" class="handwriting w-full h-full text-white px-5 py-4" contenteditable="false" oninput="handleEditorInput()" onkeyup="handleEditorKeyup()">
+                </div>
+        </main>
+
+        <div id="editor-bottom-wrapper" class="hidden flex-col shrink-0 w-full z-20 relative no-select bg-black">
+            
+            <div id="table-controls" class="hidden mx-2 mb-2 bg-[#1C1C1E] border border-[#38383A] rounded-xl px-2 py-2 flex justify-around items-center text-xs shadow-lg text-white">
+                <button onmousedown="event.preventDefault(); tableAction('addRow')" class="p-2 active:bg-[#2C2C2E] rounded-lg flex flex-col items-center"><i class="fas fa-plus mb-1 text-[#0A84FF]"></i>Row</button>
+                <button onmousedown="event.preventDefault(); tableAction('delRow')" class="p-2 active:bg-[#2C2C2E] rounded-lg flex flex-col items-center"><i class="fas fa-minus mb-1 text-[#FF453A]"></i>Row</button>
+                <div class="w-px h-6 bg-[#38383A]"></div>
+                <button onmousedown="event.preventDefault(); tableAction('addCol')" class="p-2 active:bg-[#2C2C2E] rounded-lg flex flex-col items-center"><i class="fas fa-plus mb-1 text-[#0A84FF]"></i>Col</button>
+                <button onmousedown="event.preventDefault(); tableAction('delCol')" class="p-2 active:bg-[#2C2C2E] rounded-lg flex flex-col items-center"><i class="fas fa-minus mb-1 text-[#FF453A]"></i>Col</button>
+                <div class="w-px h-6 bg-[#38383A]"></div>
+                <button onmousedown="event.preventDefault(); tableAction('delTable')" class="p-2 active:bg-[#2C2C2E] rounded-lg flex flex-col items-center text-[#FF453A]"><i class="fas fa-trash mb-1"></i>Table</button>
+            </div>
+
+            <div id="color-picker" class="hidden absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-[#2C2C2E] border border-[#38383A] p-3 rounded-xl shadow-[0_-10px_30px_rgba(0,0,0,0.8)] flex space-x-4">
+                <button onmousedown="formatText(event, 'foreColor', '#ffffff')" class="w-8 h-8 rounded-full bg-white border border-[#8E8E93]"></button>
+                <button onmousedown="formatText(event, 'foreColor', '#64D2FF')" class="w-8 h-8 rounded-full bg-[#64D2FF]"></button>
+                <button onmousedown="formatText(event, 'foreColor', '#FFD60A')" class="w-8 h-8 rounded-full bg-[#FFD60A]"></button>
+                <button onmousedown="formatText(event, 'foreColor', '#FF69B4')" class="w-8 h-8 rounded-full bg-[#FF69B4]"></button>
+            </div>
+
+            <div class="bg-[#1C1C1E]/95 backdrop-blur-xl border-t border-[#38383A] pb-safe w-full flex">
+                <div class="flex items-center overflow-x-auto no-scrollbar w-full px-2 py-2 gap-2 scroll-smooth" style="touch-action: pan-x;">
+                    
+                    <button id="btn-underline" onmousedown="formatText(event, 'underline')" class="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-[#2C2C2E] rounded-full text-[#E5E5EA] active:opacity-50 transition-all"><i class="fas fa-underline"></i></button>
+                    <button id="btn-italic" onmousedown="formatText(event, 'italic')" class="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-[#2C2C2E] rounded-full text-[#E5E5EA] active:opacity-50 transition-all"><i class="fas fa-italic"></i></button>
+                    
+                    <div class="w-px h-6 bg-[#38383A] flex-shrink-0 mx-1"></div>
+                    <button id="btn-color" onmousedown="toggleColorPicker(event)" class="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-[#2C2C2E] rounded-full text-[#E5E5EA] active:opacity-50 transition-all"><i class="fas fa-palette"></i></button>
+                    
+                    <div class="w-px h-6 bg-[#38383A] flex-shrink-0 mx-1"></div>
+                    <button id="btn-ul" onmousedown="formatText(event, 'insertUnorderedList')" class="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-[#2C2C2E] rounded-full text-[#E5E5EA] active:opacity-50 transition-all"><i class="fas fa-list-ul"></i></button>
+                    <button id="btn-ol" onmousedown="formatText(event, 'insertOrderedList')" class="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-[#2C2C2E] rounded-full text-[#E5E5EA] active:opacity-50 transition-all"><i class="fas fa-list-ol"></i></button>
+                    
+                    <div class="w-px h-6 bg-[#38383A] flex-shrink-0 mx-1"></div>
+                    <button id="btn-link" onmousedown="openLinkModal(event)" class="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-[#2C2C2E] rounded-full text-[#E5E5EA] active:opacity-50 transition-all"><i class="fas fa-link"></i></button>
+                    <button id="btn-table" onmousedown="insertTable(event)" class="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-[#2C2C2E] rounded-full text-[#E5E5EA] active:opacity-50 transition-all"><i class="fas fa-table"></i></button>
+                    
+                    <div class="w-2 flex-shrink-0"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-link" class="hidden fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+        <div class="modal-glass w-full max-w-sm rounded-2xl p-5 shadow-2xl border border-[#38383A]">
+            <h2 class="text-lg font-semibold text-white mb-4 text-center no-select">Insert Link</h2>
+            <input type="text" id="input-link-text" placeholder="Text to Display" class="w-full bg-[#2C2C2E] border border-[#38383A] rounded-lg p-3 text-white focus:outline-none focus:border-[#0A84FF] mb-3 text-[17px]" autocomplete="off">
+            <input type="url" id="input-link-url" value="https://" class="w-full bg-[#2C2C2E] border border-[#38383A] rounded-lg p-3 text-[#0A84FF] focus:outline-none focus:border-[#0A84FF] mb-5 text-[17px]" autocomplete="off">
+            <div class="flex space-x-3 no-select">
+                <button onclick="closeModals()" class="flex-1 py-3 bg-[#3A3A3C] text-white rounded-xl font-semibold active:opacity-70">Cancel</button>
+                <button onclick="handleInsertLink()" class="flex-1 py-3 bg-[#0A84FF] text-white rounded-xl font-semibold active:opacity-70">Insert</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-create" class="hidden fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+        <div class="modal-glass w-full max-w-sm rounded-2xl p-5 shadow-2xl border border-[#38383A]">
+            <h2 class="text-lg font-semibold text-white mb-4 text-center no-select">Create New</h2>
+            <div class="flex space-x-2 mb-4 bg-[#2C2C2E] p-1 rounded-xl no-select">
+                <button id="btn-type-folder" onclick="setCreateType('folder')" class="flex-1 py-2 bg-[#0A84FF] text-white rounded-lg font-semibold transition-all shadow">Folder</button>
+                <button id="btn-type-note" onclick="setCreateType('note')" class="flex-1 py-2 bg-transparent text-[#8E8E93] rounded-lg font-semibold transition-all">Note</button>
+            </div>
+            <input type="text" id="input-create-name" placeholder="Enter name..." class="w-full bg-[#2C2C2E] border border-[#38383A] rounded-lg p-3 text-white focus:outline-none focus:border-[#0A84FF] mb-5 text-[17px]" autocomplete="off">
+            <div class="flex space-x-3 no-select">
+                <button onclick="closeModals()" class="flex-1 py-3 bg-[#3A3A3C] text-white rounded-xl font-semibold active:opacity-70">Cancel</button>
+                <button onclick="handleCreate()" class="flex-1 py-3 bg-[#0A84FF] text-white rounded-xl font-semibold active:opacity-70">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-rename" class="hidden fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+        <div class="modal-glass w-full max-w-sm rounded-2xl p-5 shadow-2xl border border-[#38383A]">
+            <h2 class="text-lg font-semibold text-white mb-4 text-center no-select">Rename</h2>
+            <input type="hidden" id="input-rename-id">
+            <input type="text" id="input-rename-name" class="w-full bg-[#2C2C2E] border border-[#38383A] rounded-lg p-3 text-white focus:outline-none focus:border-[#0A84FF] mb-5 text-[17px]" autocomplete="off">
+            <div class="flex space-x-3 no-select">
+                <button onclick="closeModals()" class="flex-1 py-3 bg-[#3A3A3C] text-white rounded-xl font-semibold active:opacity-70">Cancel</button>
+                <button onclick="handleRename()" class="flex-1 py-3 bg-[#0A84FF] text-white rounded-xl font-semibold active:opacity-70">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-delete" class="hidden fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 no-select">
+        <div class="modal-glass w-full max-w-sm rounded-2xl p-5 shadow-2xl border border-[#38383A]">
+            <div class="w-12 h-12 rounded-full bg-[#FF453A]/20 text-[#FF453A] flex items-center justify-center mx-auto mb-3 text-2xl">
+                <i class="fas fa-trash"></i>
+            </div>
+            <h2 class="text-lg font-semibold text-white text-center mb-1">Delete Item</h2>
+            <p id="delete-warning-text" class="text-[#8E8E93] text-center mb-5 text-[15px]">Are you sure? This cannot be undone.</p>
+            <input type="hidden" id="input-delete-id">
+            <div class="flex space-x-3">
+                <button onclick="closeModals()" class="flex-1 py-3 bg-[#3A3A3C] text-white rounded-xl font-semibold active:opacity-70">Cancel</button>
+                <button onclick="handleDelete()" class="flex-1 py-3 bg-[#FF453A] text-white rounded-xl font-semibold active:opacity-70">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-settings" class="hidden fixed inset-0 z-50 bg-black/60 flex items-end justify-center p-4 pb-8 no-select">
+        <div class="modal-glass w-full max-w-sm rounded-2xl p-2 shadow-2xl border border-[#38383A]">
+            <div class="p-3 text-center border-b border-[#38383A] mb-2 flex flex-col items-center">
+                <h2 class="text-[13px] font-semibold text-[#8E8E93] uppercase tracking-wider">Settings & Data</h2>
+                <p id="storage-indicator" class="text-xs text-[#0A84FF] mt-1 font-medium bg-[#0A84FF]/10 px-2 py-0.5 rounded-md inline-block">Storage Used: Calculating...</p>
+            </div>
+            <button onclick="exportBackup()" class="w-full py-4 text-[#0A84FF] rounded-xl font-semibold active:bg-[#3A3A3C] transition text-[16px]">
+                <i class="fas fa-file-export mr-2"></i> Export Backup (.json)
+            </button>
+            <div class="h-px bg-[#38383A] w-full my-1"></div>
+            <button onclick="triggerImport()" class="w-full py-4 text-[#FFD60A] rounded-xl font-semibold active:bg-[#3A3A3C] transition text-[16px]">
+                <i class="fas fa-file-import mr-2"></i> Restore Backup (.json)
+            </button>
+            <div class="h-px bg-[#38383A] w-full my-1"></div>
+            <button onclick="clearAllData()" class="w-full py-4 text-[#FF453A] rounded-xl font-semibold active:bg-[#3A3A3C] transition text-[16px]">
+                <i class="fas fa-trash-alt mr-2"></i> Factory Reset All Data
+            </button>
+            <div class="h-px bg-[#38383A] w-full my-1"></div>
+            <button onclick="closeModals()" class="w-full py-4 text-white font-semibold active:bg-[#3A3A3C] transition rounded-xl text-[16px]">Cancel</button>
+        </div>
+        <input type="file" id="import-upload" accept=".json" class="hidden" onchange="handleImport(event)">
+    </div>
+
+    <script>
+        // --- 1. Global State & DB Variables ---
+        const DB_NAME = 'StudyNotesDB_Final_Live'; 
+        const DB_VERSION = 1;
+        const STORE_NAME = 'notes_store';
+        const LOCAL_STORAGE_KEY = 'StudyNotesFallback_v2';
+        
+        let db; 
+        let useLocalStorageFallback = false;
+        
+        let fs = {}; 
+        let currentFolderId = 'root';
+        let currentPath = [];
+        
+        let activeNoteId = null;
+        let isEditMode = false;
+        let isNoteUnsaved = false;
+        let createTypeSelection = 'folder';
+        
+        let activeTableCell = null;
+        let savedSelectionRange = null; 
+
+        // --- 2. Dynamic Viewport Adjustment ---
+        function adjustViewport() {
+            if (window.visualViewport) {
+                document.body.style.height = window.visualViewport.height + 'px';
+                document.body.style.width = window.visualViewport.width + 'px';
+            } else {
+                document.body.style.height = window.innerHeight + 'px';
+            }
+        }
+        
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', adjustViewport);
+        }
+        window.addEventListener('resize', adjustViewport);
+        adjustViewport(); 
+
+        // --- 3. Initialization ---
+        window.onload = () => {
+            initDB()
+                .then(loadAllData)
+                .then(() => {
+                    sessionStorage.removeItem('sn_db_retry'); 
+                    document.getElementById('view-loading').classList.add('hidden');
+                    document.getElementById('view-explorer').classList.remove('hidden');
+                    document.getElementById('view-explorer').classList.add('flex');
+                    rebuildPath();
+                    renderExplorer();
+                })
+                .catch(err => {
+                    console.error("DB Initialization failed:", err);
+                    if (!sessionStorage.getItem('sn_db_retry')) {
+                        sessionStorage.setItem('sn_db_retry', '1');
+                        indexedDB.deleteDatabase(DB_NAME).onsuccess = () => location.reload();
+                    } else {
+                        alert("Critical database error. Please clear your browser data.");
+                    }
+                });
+
+            document.addEventListener('mousedown', (e) => {
+                const colorPicker = document.getElementById('color-picker');
+                if(colorPicker && !e.target.closest('#color-picker') && !e.target.closest('#btn-color')) {
+                    colorPicker.classList.add('hidden'); colorPicker.classList.remove('flex');
+                }
+            });
+            
+            document.addEventListener('selectionchange', handleSelectionChange);
+        };
+
+        // --- 4. Database Logic ---
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(DB_NAME);
+                
+                req.onsuccess = (e) => {
+                    let database = e.target.result;
+                    if (!database.objectStoreNames.contains(STORE_NAME)) {
+                        const newVersion = database.version + 1;
+                        database.close();
+                        const upgradeReq = indexedDB.open(DB_NAME, newVersion);
+                        upgradeReq.onupgradeneeded = (ev) => {
+                            if (!ev.target.result.objectStoreNames.contains(STORE_NAME)) {
+                                ev.target.result.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                            }
+                        };
+                        upgradeReq.onsuccess = (ev) => {
+                            db = ev.target.result;
+                            resolve(db);
+                        };
+                        upgradeReq.onerror = (ev) => reject(ev.target.error);
+                    } else {
+                        db = database;
+                        resolve(db);
+                    }
+                };
+                req.onupgradeneeded = (e) => {
+                    let database = e.target.result;
+                    if (!database.objectStoreNames.contains(STORE_NAME)) {
+                        database.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                    }
+                };
+                req.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        function loadAllData() {
+            return new Promise((resolve, reject) => {
+                try {
+                    if (!db.objectStoreNames.contains(STORE_NAME)) return reject(new Error("Store missing"));
+                    const transaction = db.transaction([STORE_NAME], 'readonly');
+                    const store = transaction.objectStore(STORE_NAME);
+                    const request = store.getAll();
+
+                    request.onsuccess = (e) => {
+                        const items = e.target.result;
+                        fs = {};
+                        if (items && items.length > 0) items.forEach(item => fs[item.id] = item);
+                        if (!fs['root']) {
+                            const rootFolder = { id: 'root', type: 'folder', name: 'YPad | Think. Learn. Write.', parentId: null, children: [] };
+                            fs['root'] = rootFolder;
+                            saveItemToDB(rootFolder);
+                        }
+                        resolve();
+                    };
+                    request.onerror = (e) => reject(e.target.error);
+                } catch (e) { reject(e); }
+            });
+        }
+
+        function saveItemToDB(item) {
+            try { db.transaction([STORE_NAME], 'readwrite').objectStore(STORE_NAME).put(item); } catch (e) {}
+        }
+        function deleteItemFromDB(id) {
+            try { db.transaction([STORE_NAME], 'readwrite').objectStore(STORE_NAME).delete(id); } catch (e) {}
+        }
+        function generateId() { return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5); }
+
+        // --- 5. File System UI ---
+        function rebuildPath() {
+            currentPath = []; let curr = currentFolderId;
+            while (curr && fs[curr]) { currentPath.unshift({ id: curr, name: fs[curr].name }); curr = fs[curr].parentId; }
+            document.getElementById('breadcrumb').innerHTML = '<i class="fas fa-home mr-2 text-[10px]"></i> ' + currentPath.map(p => p.name).join(' / ');
+            if(fs[currentFolderId]) document.getElementById('current-folder-title').innerText = fs[currentFolderId].name;
+            
+            const backBtn = document.getElementById('btn-back-folder');
+            const spacer = document.getElementById('header-spacer');
+            if(currentFolderId === 'root') { backBtn.classList.add('hidden'); spacer.classList.remove('hidden'); } 
+            else { backBtn.classList.remove('hidden'); spacer.classList.add('hidden'); }
+        }
+
+        function renderExplorer() {
+            const listEl = document.getElementById('file-list'); listEl.innerHTML = '';
+            const folder = fs[currentFolderId];
+            if (!folder || !folder.children || folder.children.length === 0) {
+                listEl.innerHTML = `<div class="flex flex-col items-center justify-center h-48 text-[#8E8E93]"><i class="fas fa-folder-open text-4xl mb-3 opacity-30"></i><p class="text-sm">Empty Folder</p></div>`; return;
+            }
+            const items = folder.children.map(id => fs[id]).filter(Boolean);
+            items.sort((a, b) => a.type === b.type ? a.name.localeCompare(b.name) : (a.type === 'folder' ? -1 : 1));
+
+            items.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'flex items-center justify-between p-3 border-b border-[#38383A] active:bg-[#2C2C2E] transition-colors cursor-pointer';
+                const icon = item.type === 'folder' ? '<i class="fas fa-folder text-[#0A84FF] text-2xl w-8 text-center"></i>' : '<i class="fas fa-file-alt text-[#FFD60A] text-2xl w-8 text-center"></i>';
+                const action = item.type === 'folder' ? `onclick="enterFolder('${item.id}')"` : `onclick="openNoteView('${item.id}')"`;
+                let chevron = item.type === 'folder' ? '<i class="fas fa-chevron-right text-[#8E8E93] text-xs ml-2"></i>' : '';
+                
+                el.innerHTML = `
+                    <div class="flex items-center flex-1 overflow-hidden" ${action}>
+                        ${icon}<span class="ml-3 font-medium text-white truncate pr-2 text-[17px]">${item.name}</span> ${chevron}
+                    </div>
+                    <div class="flex space-x-2 pl-2">
+                        <button onclick="openRenameModal('${item.id}')" class="text-[#0A84FF] active:opacity-50 p-3"><i class="fas fa-edit"></i></button>
+                        <button onclick="openDeleteModal('${item.id}')" class="text-[#FF453A] active:opacity-50 p-3"><i class="fas fa-trash"></i></button>
+                    </div>`;
+                listEl.appendChild(el);
+            });
+        }
+
+        function enterFolder(id) { currentFolderId = id; rebuildPath(); renderExplorer(); }
+        function goBack() { if (currentFolderId === 'root') return; const curr = fs[currentFolderId]; if (curr && curr.parentId) { currentFolderId = curr.parentId; rebuildPath(); renderExplorer(); } }
+
+        // --- 6. Modals Logic & Data Management ---
+        function closeModals() { 
+            ['create', 'rename', 'delete', 'settings', 'link'].forEach(m => document.getElementById(`modal-${m}`).classList.add('hidden')); 
+            if (isEditMode) document.getElementById('editor').setAttribute('contenteditable', 'true');
+        }
+        
+        async function updateStorageIndicator() {
+            const indicator = document.getElementById('storage-indicator');
+            indicator.innerText = "Storage Used: Calculating...";
+            
+            if (navigator.storage && navigator.storage.estimate) {
+                try {
+                    const estimate = await navigator.storage.estimate();
+                    if (estimate.usage > 0) {
+                        const usageMB = (estimate.usage / (1024 * 1024)).toFixed(2);
+                        if(usageMB > 0.1) {
+                            indicator.innerText = `Storage Used: ${usageMB} MB`;
+                        } else {
+                            const usageKB = (estimate.usage / 1024).toFixed(2);
+                            indicator.innerText = `Storage Used: ${usageKB} KB`;
+                        }
+                    } else {
+                        calculateFallbackStorage(indicator);
+                    }
+                } catch (e) {
+                    calculateFallbackStorage(indicator);
+                }
+            } else {
+                calculateFallbackStorage(indicator);
+            }
+        }
+
+        function calculateFallbackStorage(indicator) {
+            try {
+                const size = new Blob([JSON.stringify(fs)]).size;
+                const sizeKB = (size / 1024).toFixed(2);
+                if (sizeKB > 1024) {
+                    indicator.innerText = `Storage Used: ~${(sizeKB / 1024).toFixed(2)} MB`;
+                } else {
+                    indicator.innerText = `Storage Used: ~${sizeKB} KB`;
+                }
+            } catch(e) {
+                indicator.innerText = `Storage Used: Unknown`;
+            }
+        }
+
+        function showSettings() { 
+            document.getElementById('modal-settings').classList.remove('hidden'); 
+            updateStorageIndicator();
+        }
+        
+        async function exportBackup() {
+            try {
+                const transaction = db.transaction([STORE_NAME], 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.getAll();
+                
+                request.onsuccess = (e) => {
+                    const allData = e.target.result;
+                    const dataStr = JSON.stringify(allData);
+                    const blob = new Blob([dataStr], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `StudyNotes_Backup_${new Date().toISOString().slice(0,10)}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    closeModals();
+                };
+            } catch (err) {
+                alert("Error exporting data.");
+            }
+        }
+
+        function triggerImport() { document.getElementById('import-upload').click(); }
+
+        async function handleImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!confirm("Warning: Importing a backup will completely overwrite your current notes. Continue?")) {
+                event.target.value = ''; return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (!Array.isArray(importedData)) throw new Error("Invalid backup format");
+
+                    const tx = db.transaction([STORE_NAME], 'readwrite');
+                    const store = tx.objectStore(STORE_NAME);
+                    store.clear();
+                    
+                    importedData.forEach(item => { store.put(item); });
+
+                    tx.oncomplete = () => {
+                        alert("Backup restored successfully!");
+                        location.reload(); 
+                    };
+                    tx.onerror = () => { throw tx.error; };
+                    
+                } catch (err) {
+                    alert("Error restoring backup. Ensure it is a valid .json backup file.");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function clearAllData() { 
+            if(confirm("DANGER: Are you absolutely sure? This will delete ALL folders and notes. This cannot be undone!")) { 
+                localStorage.clear();
+                if (db) db.close();
+                const req = indexedDB.deleteDatabase(DB_NAME);
+                req.onsuccess = () => location.reload();
+                req.onerror = () => { alert("Cleared safely."); location.reload(); };
+            } 
+        }
+
+        function openCreateModal() { document.getElementById('input-create-name').value = ''; setCreateType('folder'); document.getElementById('modal-create').classList.remove('hidden'); }
+        function setCreateType(type) {
+            createTypeSelection = type;
+            const bF = document.getElementById('btn-type-folder'), bN = document.getElementById('btn-type-note');
+            if(type === 'folder') {
+                bF.className = "flex-1 py-1.5 bg-[#0A84FF] text-white rounded-lg font-semibold text-sm transition-all shadow";
+                bN.className = "flex-1 py-1.5 bg-transparent text-[#8E8E93] rounded-lg font-semibold text-sm transition-all";
+            } else {
+                bF.className = "flex-1 py-1.5 bg-transparent text-[#8E8E93] rounded-lg font-semibold text-sm transition-all";
+                bN.className = "flex-1 py-1.5 bg-[#0A84FF] text-white rounded-lg font-semibold text-sm transition-all shadow";
+            }
+        }
+        function handleCreate() {
+            const name = document.getElementById('input-create-name').value.trim(); if (!name) return alert("Please enter a name");
+            const id = generateId(); const newItem = { id, type: createTypeSelection, name, parentId: currentFolderId, ...(createTypeSelection === 'folder' ? {children: []} : {content: ""}) };
+            fs[id] = newItem; if(!fs[currentFolderId].children) fs[currentFolderId].children = [];
+            fs[currentFolderId].children.push(id);
+            saveItemToDB(newItem); saveItemToDB(fs[currentFolderId]);
+            closeModals(); renderExplorer();
+            if (createTypeSelection === 'note') openNoteView(id);
+        }
+
+        function openRenameModal(id) { document.getElementById('input-rename-id').value = id; document.getElementById('input-rename-name').value = fs[id].name; document.getElementById('modal-rename').classList.remove('hidden'); }
+        function handleRename() {
+            const id = document.getElementById('input-rename-id').value, newName = document.getElementById('input-rename-name').value.trim();
+            if (newName && fs[id]) { fs[id].name = newName; saveItemToDB(fs[id]); }
+            closeModals(); renderExplorer();
+        }
+
+        function openDeleteModal(id) {
+            document.getElementById('input-delete-id').value = id;
+            document.getElementById('delete-warning-text').innerHTML = fs[id].type === 'folder' ? `Delete folder "<b>${fs[id].name}</b>"?` : `Delete note "<b>${fs[id].name}</b>"?`;
+            document.getElementById('modal-delete').classList.remove('hidden');
+        }
+        function handleDelete() {
+            const id = document.getElementById('input-delete-id').value; const parentId = fs[id].parentId;
+            if (parentId && fs[parentId]) { fs[parentId].children = fs[parentId].children.filter(cId => cId !== id); saveItemToDB(fs[parentId]); }
+            const idsToDelete = []; function collect(itemId) { idsToDelete.push(itemId); if (fs[itemId]?.type === 'folder' && fs[itemId].children) fs[itemId].children.forEach(collect); }
+            collect(id); idsToDelete.forEach(delId => { delete fs[delId]; deleteItemFromDB(delId); });
+            closeModals(); renderExplorer();
+        }
+
+        // --- 7. Note Editor ---
+        function openNoteView(id) {
+            activeNoteId = id;
+            document.getElementById('note-title').innerText = fs[id].name;
+            document.getElementById('editor').innerHTML = fs[id].content || '<p><br></p>';
+            setEditMode(false);
+            
+            document.getElementById('view-explorer').classList.add('hidden'); document.getElementById('view-explorer').classList.remove('flex');
+            document.getElementById('view-editor').classList.remove('hidden'); document.getElementById('view-editor').classList.add('flex');
+            isNoteUnsaved = false;
+        }
+
+        function closeNote() {
+            if (isNoteUnsaved) saveCurrentNote();
+            activeNoteId = null; clearContextBars();
+            document.getElementById('view-editor').classList.add('hidden'); document.getElementById('view-editor').classList.remove('flex');
+            document.getElementById('view-explorer').classList.remove('hidden'); document.getElementById('view-explorer').classList.add('flex');
+            renderExplorer();
+        }
+
+        function clearContextBars() {
+            document.getElementById('color-picker').classList.replace('flex', 'hidden');
+            document.getElementById('table-controls').classList.replace('flex', 'hidden');
+            if (activeTableCell) { activeTableCell.classList.remove('active-cell'); activeTableCell = null; }
+        }
+
+        function markUnsaved() { isNoteUnsaved = true; }
+        function saveCurrentNote() {
+            if (activeNoteId && fs[activeNoteId]) {
+                fs[activeNoteId].content = document.getElementById('editor').innerHTML;
+                saveItemToDB(fs[activeNoteId]);
+                isNoteUnsaved = false;
+            }
+        }
+        setInterval(() => { if (activeNoteId && isNoteUnsaved) saveCurrentNote(); }, 3000);
+
+        function toggleEditMode() { setEditMode(!isEditMode); }
+        function setEditMode(enable) {
+            isEditMode = enable;
+            const editor = document.getElementById('editor'), btmWrap = document.getElementById('editor-bottom-wrapper'), btn = document.getElementById('btn-toggle-mode'), label = document.getElementById('mode-label');
+
+            if (isEditMode) {
+                editor.setAttribute('contenteditable', 'true');
+                btmWrap.classList.replace('hidden', 'flex');
+                btn.classList.replace('bg-[#2C2C2E]', 'bg-[#0A84FF]');
+                btn.classList.replace('text-[#0A84FF]', 'text-white');
+                label.innerText = 'Done'; 
+                editor.focus(); updateActiveFormatting(); 
+            } else {
+                editor.setAttribute('contenteditable', 'false');
+                btmWrap.classList.replace('flex', 'hidden');
+                clearContextBars();
+                btn.classList.replace('bg-[#0A84FF]', 'bg-[#2C2C2E]');
+                btn.classList.replace('text-white', 'text-[#0A84FF]');
+                label.innerText = 'Edit'; 
+                if (isNoteUnsaved) saveCurrentNote();
+            }
+        }
+        
+        function focusEditorIfEditMode(e) { 
+            if(!isEditMode) return;
+            if (e.target.id === 'editor-container') document.getElementById('editor').focus(); 
+        }
+
+        // --- 8. Formatting state & Auto Scroll Logic ---
+        function handleEditorInput() { markUnsaved(); scrollToSelection(); updateActiveFormatting(); }
+        function handleEditorKeyup() { scrollToSelection(); updateActiveFormatting(); }
+        
+        function handleSelectionChange() {
+            if (!isEditMode) return;
+            updateActiveFormatting();
+
+            const selection = window.getSelection();
+            if (selection && selection.rangeCount > 0) {
+                const node = selection.anchorNode; if (!node) return;
+                let td = null;
+                if (node.nodeType === Node.TEXT_NODE) { if (node.parentElement) td = node.parentElement.closest('td'); } 
+                else { if (node.closest) td = node.closest('td'); }
+                
+                const editor = document.getElementById('editor');
+                if (activeTableCell && activeTableCell !== td) activeTableCell.classList.remove('active-cell');
+
+                if (td && editor.contains(td)) {
+                    activeTableCell = td; td.classList.add('active-cell');
+                    document.getElementById('table-controls').classList.replace('hidden', 'flex');
+                } else {
+                    activeTableCell = null; document.getElementById('table-controls').classList.replace('flex', 'hidden');
+                }
+            }
+        }
+
+        function updateActiveFormatting() {
+            if (!isEditMode) return;
+            try {
+                const map = {
+                    'underline': 'btn-underline', 'italic': 'btn-italic',
+                    'insertUnorderedList': 'btn-ul', 'insertOrderedList': 'btn-ol'
+                };
+                for(let cmd in map) {
+                    const btn = document.getElementById(map[cmd]);
+                    if(btn) document.queryCommandState(cmd) ? btn.classList.add('format-active') : btn.classList.remove('format-active');
+                }
+            } catch (e) {}
+        }
+
+        function scrollToSelection() {
+            if (!isEditMode) return;
+            const selection = window.getSelection(); if (!selection || selection.rangeCount === 0) return;
+            const range = selection.getRangeAt(0); let rect;
+            try {
+                const span = document.createElement('span'); span.innerHTML = '&#8203;';
+                range.insertNode(span); rect = span.getBoundingClientRect(); span.parentNode.removeChild(span);
+            } catch (e) { return; }
+            
+            if (!rect || (rect.width === 0 && rect.height === 0)) return;
+            const container = document.getElementById('editor-container');
+            const containerRect = container.getBoundingClientRect();
+            
+            if (rect.bottom > containerRect.bottom - 40) {
+                container.scrollTop += (rect.bottom - containerRect.bottom + 60);
+            } else if (rect.top < containerRect.top + 40) {
+                container.scrollTop -= (containerRect.top - rect.top + 60);
+            }
+        }
+
+        function tableAction(action) {
+            if (!activeTableCell) return;
+            const tr = activeTableCell.parentElement; if(!tr) return;
+            const table = tr.closest('table'); if(!table) return;
+            const colIndex = Array.from(tr.children).indexOf(activeTableCell);
+
+            if (action === 'addRow') {
+                const newTr = tr.cloneNode(true);
+                Array.from(newTr.cells).forEach(cell => { cell.innerHTML = '<br>'; cell.classList.remove('active-cell'); });
+                tr.parentElement.insertBefore(newTr, tr.nextSibling);
+            } else if (action === 'delRow') {
+                if (table.rows.length > 1) tr.remove(); else table.remove();
+            } else if (action === 'addCol') {
+                Array.from(table.rows).forEach(row => {
+                    if(row.cells[colIndex]) {
+                        const newCell = row.cells[colIndex].cloneNode(true);
+                        newCell.innerHTML = '<br>'; newCell.classList.remove('active-cell');
+                        row.insertBefore(newCell, row.cells[colIndex].nextSibling);
+                    }
+                });
+            } else if (action === 'delCol') {
+                if (tr.cells.length > 1) { Array.from(table.rows).forEach(row => { if(row.cells[colIndex]) row.cells[colIndex].remove(); }); } else table.remove();
+            } else if (action === 'delTable') {
+                table.remove(); document.getElementById('table-controls').classList.replace('flex', 'hidden'); activeTableCell = null;
+            }
+            markUnsaved(); document.getElementById('editor').focus();
+        }
+
+        function openLinkModal(e) {
+            e.preventDefault(); e.stopPropagation(); const sel = window.getSelection();
+            if (sel && sel.rangeCount > 0) {
+                savedSelectionRange = sel.getRangeAt(0).cloneRange();
+                document.getElementById('input-link-text').value = sel.toString();
+            } else {
+                savedSelectionRange = null; document.getElementById('input-link-text').value = '';
+            }
+            document.getElementById('input-link-url').value = 'https://';
+            document.getElementById('editor').setAttribute('contenteditable', 'false');
+            document.getElementById('modal-link').classList.remove('hidden');
+        }
+
+        function handleInsertLink() {
+            const url = document.getElementById('input-link-url').value;
+            const text = document.getElementById('input-link-text').value;
+            if(!url || url === 'https://') return alert("Please enter a valid URL.");
+            
+            closeModals(); document.getElementById('editor').focus();
+            const sel = window.getSelection(); sel.removeAllRanges();
+            if (savedSelectionRange) sel.addRange(savedSelectionRange);
+            
+            if (text && text !== sel.toString()) {
+                document.execCommand('insertHTML', false, `<a href="${url}" target="_blank">${text}</a>`);
+            } else { document.execCommand('createLink', false, url); }
+            markUnsaved();
+        }
+
+        function toggleColorPicker(e) {
+            e.preventDefault(); e.stopPropagation();
+            const cp = document.getElementById('color-picker'); cp.classList.contains('hidden') ? cp.classList.replace('hidden', 'flex') : cp.classList.replace('flex', 'hidden');
+        }
+
+        function formatText(event, command, value = null) {
+            event.preventDefault(); const sel = window.getSelection(); let zwspNode = null;
+            
+            if (sel && sel.isCollapsed && command !== 'insertUnorderedList' && command !== 'insertOrderedList') {
+                const range = sel.getRangeAt(0); zwspNode = document.createTextNode('\u200B');
+                range.insertNode(zwspNode); range.selectNode(zwspNode); sel.removeAllRanges(); sel.addRange(range);
+            }
+            
+            document.execCommand(command, false, value);
+            
+            if (zwspNode) sel.collapseToEnd();
+            
+            markUnsaved();
+            document.getElementById('color-picker').classList.replace('flex', 'hidden');
+            document.getElementById('editor').focus(); updateActiveFormatting(); scrollToSelection();
+        }
+
+        function insertTable(event) {
+            event.preventDefault();
+            const tableHTML = `<br><table width="100%"><tbody><tr><td><br></td><td><br></td></tr><tr><td><br></td><td><br></td></tr></tbody></table><br>`;
+            document.execCommand('insertHTML', false, tableHTML); markUnsaved(); document.getElementById('editor').focus(); scrollToSelection();
+        }
+        
+        if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js");
+  });
+}
+    </script>
+</body>
+</html>
+
+
