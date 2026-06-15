@@ -5,18 +5,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>YPad | Think. Learn. Write.</title>
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap" rel="stylesheet">
-    
+
     <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#000000">
 
     <script src="https://cdn.jsdelivr.net/npm/dexie@3.2.4/dist/dexie.min.js"></script>
-    
+
     <style>
         /* Mobile Native App Resets & Utilities */
         :root {
@@ -50,14 +50,14 @@
 
         /* Editor Styles */
         #editor-container { touch-action: auto; }
-        
+
         #editor {
             min-height: 100%;
             outline: none;
             padding-bottom: 150px; 
             word-wrap: break-word;
         }
-        
+
         #editor table { width: 100%; border-collapse: collapse; margin: 15px 0; border: 1px solid var(--border-color); }
         #editor td { border: 1px solid var(--border-color); padding: 10px; min-width: 50px; vertical-align: top; }
         #editor td.active-cell { background-color: rgba(10, 132, 255, 0.15); border: 1px solid var(--accent); }
@@ -72,7 +72,7 @@
 
         .pt-safe { padding-top: env(safe-area-inset-top); }
         .pb-safe { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
-        
+
         .modal-glass {
             background: rgba(28, 28, 30, 0.85);
             backdrop-filter: blur(20px);
@@ -122,7 +122,7 @@
                 <i class="fas fa-chevron-left mr-1"></i>
             </button>
             <h1 id="note-title" class="text-lg font-semibold truncate flex-1 handwriting text-white" style="font-size: 20px;">Title</h1>
-            
+
             <button id="btn-toggle-mode" onclick="toggleEditMode()" class="ml-2 px-4 py-1.5 rounded-full text-sm font-semibold transition-colors bg-[#2C2C2E] text-[#0A84FF] active:opacity-70">
                 <span id="mode-label">Edit</span>
             </button>
@@ -134,7 +134,7 @@
         </main>
 
         <div id="editor-bottom-wrapper" class="hidden flex-col shrink-0 w-full z-20 relative no-select bg-black">
-            
+
             <div id="table-controls" class="hidden mx-2 mb-2 bg-[#1C1C1E] border border-[#38383A] rounded-xl px-2 py-2 flex justify-around items-center text-xs shadow-lg text-white">
                 <button onmousedown="event.preventDefault(); tableAction('addRow')" class="p-2 active:bg-[#2C2C2E] rounded-lg flex flex-col items-center"><i class="fas fa-plus mb-1 text-[#0A84FF]"></i>Row</button>
                 <button onmousedown="event.preventDefault(); tableAction('delRow')" class="p-2 active:bg-[#2C2C2E] rounded-lg flex flex-col items-center"><i class="fas fa-minus mb-1 text-[#FF453A]"></i>Row</button>
@@ -154,21 +154,21 @@
 
             <div class="bg-[#1C1C1E]/95 backdrop-blur-xl border-t border-[#38383A] pb-safe w-full flex">
                 <div class="flex items-center overflow-x-auto no-scrollbar w-full px-2 py-2 gap-2 scroll-smooth" style="touch-action: pan-x;">
-                    
+
                     <button id="btn-underline" onmousedown="formatText(event, 'underline')" class="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-[#2C2C2E] rounded-full text-[#E5E5EA] active:opacity-50 transition-all"><i class="fas fa-underline"></i></button>
                     <button id="btn-italic" onmousedown="formatText(event, 'italic')" class="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-[#2C2C2E] rounded-full text-[#E5E5EA] active:opacity-50 transition-all"><i class="fas fa-italic"></i></button>
-                    
+
                     <div class="w-px h-6 bg-[#38383A] flex-shrink-0 mx-1"></div>
                     <button id="btn-color" onmousedown="toggleColorPicker(event)" class="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-[#2C2C2E] rounded-full text-[#E5E5EA] active:opacity-50 transition-all"><i class="fas fa-palette"></i></button>
-                    
+
                     <div class="w-px h-6 bg-[#38383A] flex-shrink-0 mx-1"></div>
                     <button id="btn-ul" onmousedown="formatText(event, 'insertUnorderedList')" class="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-[#2C2C2E] rounded-full text-[#E5E5EA] active:opacity-50 transition-all"><i class="fas fa-list-ul"></i></button>
                     <button id="btn-ol" onmousedown="formatText(event, 'insertOrderedList')" class="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-[#2C2C2E] rounded-full text-[#E5E5EA] active:opacity-50 transition-all"><i class="fas fa-list-ol"></i></button>
-                    
+
                     <div class="w-px h-6 bg-[#38383A] flex-shrink-0 mx-1"></div>
                     <button id="btn-link" onmousedown="openLinkModal(event)" class="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-[#2C2C2E] rounded-full text-[#E5E5EA] active:opacity-50 transition-all"><i class="fas fa-link"></i></button>
                     <button id="btn-table" onmousedown="insertTable(event)" class="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-[#2C2C2E] rounded-full text-[#E5E5EA] active:opacity-50 transition-all"><i class="fas fa-table"></i></button>
-                    
+
                     <div class="w-2 flex-shrink-0"></div>
                 </div>
             </div>
@@ -253,28 +253,26 @@
     </div>
 
     <script>
-        // --- 1. Global State & DB Variables ---
         const DB_NAME = 'StudyNotesDB_Final_Live'; 
         const DB_VERSION = 1;
         const STORE_NAME = 'notes_store';
         const LOCAL_STORAGE_KEY = 'StudyNotesFallback_v2';
-        
+
         let db; 
         let useLocalStorageFallback = false;
-        
+
         let fs = {}; 
         let currentFolderId = 'root';
         let currentPath = [];
-        
+
         let activeNoteId = null;
         let isEditMode = false;
         let isNoteUnsaved = false;
         let createTypeSelection = 'folder';
-        
+
         let activeTableCell = null;
         let savedSelectionRange = null; 
 
-        // --- 2. Dynamic Viewport Adjustment ---
         function adjustViewport() {
             if (window.visualViewport) {
                 document.body.style.height = window.visualViewport.height + 'px';
@@ -283,14 +281,13 @@
                 document.body.style.height = window.innerHeight + 'px';
             }
         }
-        
+
         if (window.visualViewport) {
             window.visualViewport.addEventListener('resize', adjustViewport);
         }
         window.addEventListener('resize', adjustViewport);
         adjustViewport(); 
 
-        // --- 3. Initialization ---
         window.onload = () => {
             initDB()
                 .then(loadAllData)
@@ -318,15 +315,14 @@
                     colorPicker.classList.add('hidden'); colorPicker.classList.remove('flex');
                 }
             });
-            
+
             document.addEventListener('selectionchange', handleSelectionChange);
         };
 
-        // --- 4. Database Logic ---
         function initDB() {
             return new Promise((resolve, reject) => {
                 const req = indexedDB.open(DB_NAME);
-                
+
                 req.onsuccess = (e) => {
                     let database = e.target.result;
                     if (!database.objectStoreNames.contains(STORE_NAME)) {
@@ -390,13 +386,12 @@
         }
         function generateId() { return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5); }
 
-        // --- 5. File System UI ---
         function rebuildPath() {
             currentPath = []; let curr = currentFolderId;
             while (curr && fs[curr]) { currentPath.unshift({ id: curr, name: fs[curr].name }); curr = fs[curr].parentId; }
             document.getElementById('breadcrumb').innerHTML = '<i class="fas fa-home mr-2 text-[10px]"></i> ' + currentPath.map(p => p.name).join(' / ');
             if(fs[currentFolderId]) document.getElementById('current-folder-title').innerText = fs[currentFolderId].name;
-            
+
             const backBtn = document.getElementById('btn-back-folder');
             const spacer = document.getElementById('header-spacer');
             if(currentFolderId === 'root') { backBtn.classList.add('hidden'); spacer.classList.remove('hidden'); } 
@@ -418,7 +413,7 @@
                 const icon = item.type === 'folder' ? '<i class="fas fa-folder text-[#0A84FF] text-2xl w-8 text-center"></i>' : '<i class="fas fa-file-alt text-[#FFD60A] text-2xl w-8 text-center"></i>';
                 const action = item.type === 'folder' ? `onclick="enterFolder('${item.id}')"` : `onclick="openNoteView('${item.id}')"`;
                 let chevron = item.type === 'folder' ? '<i class="fas fa-chevron-right text-[#8E8E93] text-xs ml-2"></i>' : '';
-                
+
                 el.innerHTML = `
                     <div class="flex items-center flex-1 overflow-hidden" ${action}>
                         ${icon}<span class="ml-3 font-medium text-white truncate pr-2 text-[17px]">${item.name}</span> ${chevron}
@@ -434,16 +429,15 @@
         function enterFolder(id) { currentFolderId = id; rebuildPath(); renderExplorer(); }
         function goBack() { if (currentFolderId === 'root') return; const curr = fs[currentFolderId]; if (curr && curr.parentId) { currentFolderId = curr.parentId; rebuildPath(); renderExplorer(); } }
 
-        // --- 6. Modals Logic & Data Management ---
         function closeModals() { 
             ['create', 'rename', 'delete', 'settings', 'link'].forEach(m => document.getElementById(`modal-${m}`).classList.add('hidden')); 
             if (isEditMode) document.getElementById('editor').setAttribute('contenteditable', 'true');
         }
-        
+
         async function updateStorageIndicator() {
             const indicator = document.getElementById('storage-indicator');
             indicator.innerText = "Storage Used: Calculating...";
-            
+
             if (navigator.storage && navigator.storage.estimate) {
                 try {
                     const estimate = await navigator.storage.estimate();
@@ -484,19 +478,19 @@
             document.getElementById('modal-settings').classList.remove('hidden'); 
             updateStorageIndicator();
         }
-        
+
         async function exportBackup() {
             try {
                 const transaction = db.transaction([STORE_NAME], 'readonly');
                 const store = transaction.objectStore(STORE_NAME);
                 const request = store.getAll();
-                
+
                 request.onsuccess = (e) => {
                     const allData = e.target.result;
                     const dataStr = JSON.stringify(allData);
                     const blob = new Blob([dataStr], { type: "application/json" });
                     const url = URL.createObjectURL(blob);
-                    
+
                     const a = document.createElement('a');
                     a.href = url;
                     a.download = `StudyNotes_Backup_${new Date().toISOString().slice(0,10)}.json`;
@@ -504,7 +498,7 @@
                     a.click();
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
-                    
+
                     closeModals();
                 };
             } catch (err) {
@@ -531,7 +525,7 @@
                     const tx = db.transaction([STORE_NAME], 'readwrite');
                     const store = tx.objectStore(STORE_NAME);
                     store.clear();
-                    
+
                     importedData.forEach(item => { store.put(item); });
 
                     tx.oncomplete = () => {
@@ -539,7 +533,7 @@
                         location.reload(); 
                     };
                     tx.onerror = () => { throw tx.error; };
-                    
+
                 } catch (err) {
                     alert("Error restoring backup. Ensure it is a valid .json backup file.");
                 }
@@ -600,13 +594,12 @@
             closeModals(); renderExplorer();
         }
 
-        // --- 7. Note Editor ---
         function openNoteView(id) {
             activeNoteId = id;
             document.getElementById('note-title').innerText = fs[id].name;
             document.getElementById('editor').innerHTML = fs[id].content || '<p><br></p>';
             setEditMode(false);
-            
+
             document.getElementById('view-explorer').classList.add('hidden'); document.getElementById('view-explorer').classList.remove('flex');
             document.getElementById('view-editor').classList.remove('hidden'); document.getElementById('view-editor').classList.add('flex');
             isNoteUnsaved = false;
@@ -658,16 +651,15 @@
                 if (isNoteUnsaved) saveCurrentNote();
             }
         }
-        
+
         function focusEditorIfEditMode(e) { 
             if(!isEditMode) return;
             if (e.target.id === 'editor-container') document.getElementById('editor').focus(); 
         }
 
-        // --- 8. Formatting state & Auto Scroll Logic ---
         function handleEditorInput() { markUnsaved(); scrollToSelection(); updateActiveFormatting(); }
         function handleEditorKeyup() { scrollToSelection(); updateActiveFormatting(); }
-        
+
         function handleSelectionChange() {
             if (!isEditMode) return;
             updateActiveFormatting();
@@ -678,7 +670,7 @@
                 let td = null;
                 if (node.nodeType === Node.TEXT_NODE) { if (node.parentElement) td = node.parentElement.closest('td'); } 
                 else { if (node.closest) td = node.closest('td'); }
-                
+
                 const editor = document.getElementById('editor');
                 if (activeTableCell && activeTableCell !== td) activeTableCell.classList.remove('active-cell');
 
@@ -713,11 +705,11 @@
                 const span = document.createElement('span'); span.innerHTML = '&#8203;';
                 range.insertNode(span); rect = span.getBoundingClientRect(); span.parentNode.removeChild(span);
             } catch (e) { return; }
-            
+
             if (!rect || (rect.width === 0 && rect.height === 0)) return;
             const container = document.getElementById('editor-container');
             const containerRect = container.getBoundingClientRect();
-            
+
             if (rect.bottom > containerRect.bottom - 40) {
                 container.scrollTop += (rect.bottom - containerRect.bottom + 60);
             } else if (rect.top < containerRect.top + 40) {
@@ -770,11 +762,11 @@
             const url = document.getElementById('input-link-url').value;
             const text = document.getElementById('input-link-text').value;
             if(!url || url === 'https://') return alert("Please enter a valid URL.");
-            
+
             closeModals(); document.getElementById('editor').focus();
             const sel = window.getSelection(); sel.removeAllRanges();
             if (savedSelectionRange) sel.addRange(savedSelectionRange);
-            
+
             if (text && text !== sel.toString()) {
                 document.execCommand('insertHTML', false, `<a href="${url}" target="_blank">${text}</a>`);
             } else { document.execCommand('createLink', false, url); }
@@ -788,16 +780,16 @@
 
         function formatText(event, command, value = null) {
             event.preventDefault(); const sel = window.getSelection(); let zwspNode = null;
-            
+
             if (sel && sel.isCollapsed && command !== 'insertUnorderedList' && command !== 'insertOrderedList') {
                 const range = sel.getRangeAt(0); zwspNode = document.createTextNode('\u200B');
                 range.insertNode(zwspNode); range.selectNode(zwspNode); sel.removeAllRanges(); sel.addRange(range);
             }
-            
+
             document.execCommand(command, false, value);
-            
+
             if (zwspNode) sel.collapseToEnd();
-            
+
             markUnsaved();
             document.getElementById('color-picker').classList.replace('flex', 'hidden');
             document.getElementById('editor').focus(); updateActiveFormatting(); scrollToSelection();
@@ -805,15 +797,50 @@
 
         function insertTable(event) {
             event.preventDefault();
-            const tableHTML = `<br><table width="100%"><tbody><tr><td><br></td><td><br></td></tr><tr><td><br></td><td><br></td></tr></tbody></table><br>`;
-            document.execCommand('insertHTML', false, tableHTML); markUnsaved(); document.getElementById('editor').focus(); scrollToSelection();
+            const sel = window.getSelection();
+            let tableHTML = "";
+
+            // If user has highlighted text, intelligently convert it to a table
+            if (sel && !sel.isCollapsed && sel.toString().trim().length > 0) {
+                const text = sel.toString().trim();
+                const rows = text.split('\n');
+                tableHTML = `<br><table width="100%"><tbody>`;
+
+                rows.forEach(rowText => {
+                    let cols = [];
+                    // Fallback splitting: Tabs -> Double Spaces -> Single Space
+                    if (rowText.includes('\t')) {
+                        cols = rowText.split('\t');
+                    } else if (rowText.match(/\s{2,}/)) {
+                        cols = rowText.split(/\s{2,}/);
+                    } else {
+                        cols = rowText.split(/\s+/);
+                    }
+
+                    tableHTML += `<tr>`;
+                    cols.forEach(colText => {
+                        tableHTML += `<td>${colText.trim() || '<br>'}</td>`;
+                    });
+                    tableHTML += `</tr>`;
+                });
+
+                tableHTML += `</tbody></table><br>`;
+            } else {
+                // Default fallback: Insert an empty 2x2 table
+                tableHTML = `<br><table width="100%"><tbody><tr><td><br></td><td><br></td></tr><tr><td><br></td><td><br></td></tr></tbody></table><br>`;
+            }
+
+            document.execCommand('insertHTML', false, tableHTML); 
+            markUnsaved(); 
+            document.getElementById('editor').focus(); 
+            scrollToSelection();
         }
-        
+
         if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js");
-  });
-}
+            window.addEventListener("load", () => {
+                navigator.serviceWorker.register("./sw.js");
+            });
+        }
     </script>
 </body>
 </html>
